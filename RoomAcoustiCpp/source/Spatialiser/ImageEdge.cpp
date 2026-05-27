@@ -424,7 +424,9 @@ namespace RAC
 #ifdef DEBUG_IEM
 				Debug::remove_path(IntToStr(source.id) + "s");
 #endif
-				return 0.0;
+				Absorption<> result(frequencyBands.Length());
+				result = 0.0;
+				return result;
 			}
 		}
 

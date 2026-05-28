@@ -2,6 +2,24 @@ cmake_minimum_required(VERSION 3.16)
 
 project(RoomAcoustiCPP LANGUAGES CXX)
 
+# Apple Clang doesn't ship with OpenMP; requires libomp installed via Homebrew.
+if(APPLE)
+    execute_process(
+        COMMAND brew --prefix libomp
+        OUTPUT_VARIABLE LIBOMP_PREFIX
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+    )
+    if(NOT LIBOMP_PREFIX)
+        message(FATAL_ERROR "libomp not found. Install with: brew install libomp")
+    endif()
+    set(OpenMP_C_FLAGS "-Xpreprocessor -fopenmp -I${LIBOMP_PREFIX}/include")
+    set(OpenMP_CXX_FLAGS "-Xpreprocessor -fopenmp -I${LIBOMP_PREFIX}/include")
+    set(OpenMP_C_LIB_NAMES "omp")
+    set(OpenMP_CXX_LIB_NAMES "omp")
+    set(OpenMP_omp_LIBRARY "${LIBOMP_PREFIX}/lib/libomp.dylib")
+endif()
+
 find_package(OpenMP REQUIRED)
 
 
@@ -38,7 +56,7 @@ target_include_directories(3DTI
         "${CMAKE_CURRENT_SOURCE_DIR}/3dti_AudioToolkit/3dti_ResourceManager/third_party_libraries/sofacoustics/libsofa/dependencies/include"
         )
 
-target_compile_features(3DTI PUBLIC cxx_std_20)
+target_compile_features(3DTI PUBLIC cxx_std_17)
 
 #
 # RoomAcoustiCPP
@@ -61,17 +79,14 @@ list(FILTER RAC_SOURCES EXCLUDE REGEX ".*_mex\\.cpp$")
 add_library(RoomAcoustiCPP STATIC ${RAC_SOURCES})
 set_target_properties(RoomAcoustiCPP PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
-# Include Matlab libraries and include directories for RoomAcoustiCPP target
-find_package(Matlab REQUIRED COMPONENTS MX_LIBRARY ENG_LIBRARY)
+# Matlab MEX interface files are excluded from compilation (filtered above),
+# so Matlab linkage is optional — skip if not installed.
+find_package(Matlab COMPONENTS MX_LIBRARY ENG_LIBRARY)
 
-target_link_libraries(RoomAcoustiCPP PRIVATE
-    Matlab::mx
-    Matlab::eng
-)
-
-target_include_directories(RoomAcoustiCPP PRIVATE
-    ${Matlab_INCLUDE_DIRS}
-)
+if(Matlab_FOUND)
+    target_link_libraries(RoomAcoustiCPP PRIVATE Matlab::mx Matlab::eng)
+    target_include_directories(RoomAcoustiCPP PRIVATE ${Matlab_INCLUDE_DIRS})
+endif()
 
 target_link_libraries(RoomAcoustiCPP
     PUBLIC
@@ -88,6 +103,13 @@ target_include_directories(RoomAcoustiCPP
 )
 
 target_compile_features(RoomAcoustiCPP PUBLIC cxx_std_20)
+
+# Apple's libc++ doesn't implement std::atomic<std::shared_ptr<T>> yet; force-include the polyfill.
+if(APPLE)
+    target_compile_options(RoomAcoustiCPP PRIVATE
+        -include "${CMAKE_CURRENT_SOURCE_DIR}/RoomAcoustiCpp/include/Common/AtomicSharedPtr.h"
+    )
+endif()
 
 if(WIN32)
     target_compile_definitions(RoomAcoustiCPP

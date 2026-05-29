@@ -282,7 +282,7 @@ namespace RAC
 			*/
 			Config(int sampleRate, int numFrames, size_t numReverbSources, Real lerpFactor, Real Q, Coefficients<> frequencyBands, SpatialisationMode mode) :
 				fs(sampleRate), numFrames(numFrames), numReverbSources(CalculateNumReverbSources(numReverbSources)), lerpFactor(CalculateLerpFactor(lerpFactor)),
-				Q(Q), frequencyBands(frequencyBands), spatialisationMode(mode) {};
+				Q(Q), frequencyBands(frequencyBands), spatialisationMode(mode), impulseResponseMode(false) {};
 
 			/**
 			* @return True if the impulse response mode is enabled (interpolation disabled), false otherwise
